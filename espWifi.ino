@@ -6,16 +6,10 @@
 //Variables
 int i = 0;
 int statusCode;
-const char* ssid = "PetFeeder";
-const char* passphrase = "202470311111";
+const char* ssid = "";
+const char* passphrase = "";
 String st;
 String content;
-
-
-//Function Declaration
-bool testWifi(void);
-void launchNoWifiWeb(void);
-void setupAP(void);
 
 //--------Establishing Local server at port 80 whenever required
 ESP8266WebServer server(80);
@@ -32,51 +26,34 @@ void setup()
   //for (int i = 0 ; i < EEPROM.length() ; i++) {
   //  EEPROM.write(i, 0);
   //}
-  //EEPROM.commit();
+  EEPROM.commit();
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.println();
   Serial.println();
   Serial.println("Startup");
-
-  // Read eeprom for ssid and password
-  Serial.println("Reading EEPROM ssid");
-
-  String esid = getCurrentSsid();
+  String esid = getEepromValue(0, 32);
   Serial.println();
   Serial.print("SSID: ");
   Serial.println(esid);
-  Serial.println("Reading EEPROM pass");
-
-  String epass = "";
-  for (int i = 32; i < 96; ++i)
-  {
-    epass += char(EEPROM.read(i));
-  }
+  String epass = getEepromValue(32, 96);
   Serial.print("PASS: ");
   Serial.println(epass);
-
-
   WiFi.begin(esid.c_str(), epass.c_str());
-  if (testWifi())
+  if (isConnectedToWifi())
   {
-    Serial.println("Succesfully Connected!!!");
-    launchWifiWeb();
+    Serial.println("Succesfully Connected to wifi!");
+    createClientControllers();
   }
   else
   {
-    Serial.println("Turning the HotSpot On");
-    launchNoWifiWeb();
-    setupAP();// Setup accesspoint or HotSpot
+    Serial.println("Can't connect to wifi. Turning the HotSpot On.");
+    createHotspotControllers();
+    startHotspot();// Setup accesspoint or HotSpot
   }
-
-  while (1)
-  {
-    delay(100);
-    server.handleClient();
-  }
-
+  server.begin();
 }
 void loop() {
+  server.handleClient();
   if ((WiFi.status() == WL_CONNECTED))
   {
     // Add your program code here which the esp8266 has to perform when it connects to network
@@ -90,7 +67,7 @@ void loop() {
 
 
 //Functions used for saving WiFi credentials and to connect to it which you do not need to change
-bool testWifi(void)
+bool isConnectedToWifi(void)
 {
   int c = 0;
   Serial.println("Waiting for WiFi to connect");
@@ -108,22 +85,7 @@ bool testWifi(void)
   return false;
 }
 
-void launchNoWifiWeb()
-{
-  Serial.println("");
-  if (WiFi.status() == WL_CONNECTED)
-    Serial.println("WiFi connected");
-  Serial.print("Local IP: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("SoftAP IP: ");
-  Serial.println(WiFi.softAPIP());
-  createWebServer();
-  // Start the server
-  server.begin();
-  Serial.println("Server started");
-}
-
-void setupAP(void)
+void startHotspot(void)
 {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
@@ -131,12 +93,11 @@ void setupAP(void)
   delay(100);
   int n = WiFi.scanNetworks();
   Serial.println("scan completed");
-  if (n == 0)
+  if (n == 0) {
     Serial.println("No WiFi Networks found");
-  else
-  {
+  } else {
     Serial.print(n);
-    Serial.println(" Networks found");
+    Serial.println("Networks found");
     for (int i = 0; i < n; ++i)
     {
       // Print SSID and RSSI for each network found
@@ -170,15 +131,13 @@ void setupAP(void)
   delay(100);
   WiFi.softAP("PetFeeder", "");
   Serial.println("Initializing_Wifi_accesspoint");
-  launchNoWifiWeb();
   Serial.println("over");
 }
 
-void createWebServer()
+void createHotspotControllers()
 {
   {
     server.on("/", []() {
-
       IPAddress ip = WiFi.softAPIP();
       String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
       content = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>body{font-family: Arial, Helvetica, sans-serif;}form{border: 3px solid #f1f1f1;}input[type=text], input[type=password], select{width: 100%; padding: 12px 20px; margin: 8px 0; display: inline-block; border: 1px solid #ccc; box-sizing: border-box;}button{background-color: #4CAF50; color: white; padding: 14px 20px; margin: 8px 0; border: none; cursor: pointer; width: 100%;}button:hover{opacity: 0.8;}.cancelbtn{width: auto; padding: 10px 18px; background-color: #f44336;}.imgcontainer{text-align: center; margin: 24px 0 12px 0;}img.avatar{width: 40%; border-radius: 50%;}.container{padding: 16px;}span.psw{float: right; padding-top: 16px;}/* Change styles for span and cancel button on extra small screens */@media screen and (max-width: 300px){span.psw{display: block; float: none;}.cancelbtn{width: 100%;}}</style></head><body><h2>Настройка WiFi сети для PetFeeder</h2><form action='setting'> <div class='container'> <label for='uname'><b>Выберите WiFi Сеть из списка</b></label>";
@@ -191,7 +150,6 @@ void createWebServer()
       //setupAP();
       IPAddress ip = WiFi.softAPIP();
       String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-
       content = "<!DOCTYPE HTML>\r\n<html><a href='/'>go back</a>";
       server.send(200, "text/html", content);
     });
@@ -224,7 +182,6 @@ void createWebServer()
           Serial.println(qpass[i]);
         }
         EEPROM.commit();
-
         content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
         statusCode = 200;
         server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -241,27 +198,26 @@ void createWebServer()
   }
 }
 
-String getCurrentSsid(void) {
-  String esid;
-  for (int i = 0; i < 32; ++i)
-  {
-    if (EEPROM.read(i) != NULL) {
-      esid += char(EEPROM.read(i));
-    }
-    
-  }
-  return esid;
-}
 
-void launchWifiWeb(void) {
-  
+
+void createClientControllers(void) {
   server.on("/current-ssid", []() {
       Serial.println("Opened current sid controller");
       content = "{\"ssid\":\"";
-      content += getCurrentSsid();
+      content += getEepromValue(0, 32);
       content += "\"}";
       server.sendHeader("Access-Control-Allow-Origin", "*");
       server.send(200, "application/json; charset=utf-8", content);
-    });
-    server.begin();
+  });
 }
+
+String getEepromValue(int start, int end) {
+  String value;
+  for (int i = start; i < end; ++i)
+  {
+    if (EEPROM.read(i) != NULL) {
+      value += char(EEPROM.read(i));
+    }
+  }
+  return value;
+} 
