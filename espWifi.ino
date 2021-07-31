@@ -13,8 +13,7 @@ const char* passphrase = "";
 String st;
 String content;
 
-ESP8266WebServer server(80);
-Hotspot Hotspot(server);
+Hotspot Hotspot;
 EepromSettings EepromSettings;
 
 void setup()
@@ -39,7 +38,7 @@ void setup()
   if (isConnectedToWifi())
   {
     Serial.println("Succesfully Connected to wifi!");
-    createClientControllers();
+    //createClientControllers();
   }
   else
   {

@@ -5,17 +5,18 @@
 #include <ESP8266WebServer.h>
 
 // settings
-#define SSID "PetFeeder"
-#define SSID_PASS ""
-String[] networks;
+const char* SSID = "PetFeeder";
+const char* SSID_PASS = "";
+String networks[20];
 int networksAmount = 0;
-ESP8266WebServer webServer;
-class Hotspot {
+ESP8266WebServer server(80);
 
+class Hotspot {
 public:
-    Hotspot(ESP8266WebServer server) {
-        webServer = server;
+    Hotspot() {
+
     }
+    
     void start() {
         WiFi.mode(WIFI_STA);
         WiFi.disconnect();
@@ -45,7 +46,8 @@ public:
 
 protected:
     void createControllers() {
-        webServer.on("/", []() {
+
+        server.on("/", []() {
             IPAddress ip = WiFi.softAPIP();
             String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
             String st = "<select name='ssid'>";
@@ -65,7 +67,7 @@ protected:
             content += " <label for='pass'><b>Пароль от WiFi сети</b></label> <input type='password' placeholder='Enter Password' name='pass' required> <button type='submit'>Сохранить</button> </div><div class='container' style='background-color:#f1f1f1'> <button type='button' class='cancelbtn'>Обновить список WiFi сетей</button> </div></form></body></html>";
             server.send(200, "text/html; charset=utf-8", content);
         });
-        webServer.on("/scan", []() {
+        server.on("/scan", []() {
             //setupAP();
             IPAddress ip = WiFi.softAPIP();
             String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
@@ -73,9 +75,11 @@ protected:
             server.send(200, "text/html", content);
         });
 
-        webServer.on("/setting", []() {
+        server.on("/setting", []() {
             String qsid = server.arg("ssid");
             String qpass = server.arg("pass");
+            int statusCode = 200;
+            String content = "";
             if (qsid.length() > 0 && qpass.length() > 0) {
                 Serial.println("clearing eeprom");
                 for (int i = 0; i < 96; ++i) {
@@ -101,27 +105,28 @@ protected:
                     Serial.println(qpass[i]);
                 }
                 EEPROM.commit();
-                String content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
-                int statusCode = 200;
+                content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
                 server.sendHeader("Access-Control-Allow-Origin", "*");
                 server.send(statusCode, "application/json", content);
                 ESP.reset();
             } else {
-                String content = "{\"Error\":\"404 not found\"}";
+                content = "{\"Error\":\"404 not found\"}";
                 int statusCode = 404;
                 Serial.println("Sending 404");
             }
             server.sendHeader("Access-Control-Allow-Origin", "*");
             server.send(statusCode, "application/json", content);
         });
-        webServer.begin();
+        server.begin();
     }
     void scanNetworks(bool forceRescan = false) {
         if (networksAmount < 1 || forceRescan) {
-            networks[] = [];
             int networksAmount = WiFi.scanNetworks();
             for (int i = 0; i < networksAmount; ++i) {
                 networks[i] = WiFi.SSID(i);
+            }
+            for (int i = networksAmount; i < 20; ++i) {
+                networks[i] = "";
             }
         }
     }

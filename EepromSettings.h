@@ -3,23 +3,24 @@
 
 #include <EEPROM.h>
 
-typedef struct {
-    String key;
-    int length;
-} settingsMap;
 
-const String SSID_KEY = "ssid";
-const String SSID_PASS_KEY = "ssid_pass";
-
-// settings
-const settingsMap settings[] {
-    {SSID_KEY, 32},
-    {SSID_PASS_KEY, 64}
-};
-
-const int SETTINGS_SIZE = sizeof(settings);
 
 class EepromSettings {
+    typedef struct {
+        String key;
+        int length;
+    } settingsMap;
+
+    const String SSID_KEY = "ssid";
+    const String SSID_PASS_KEY = "ssid_pass";
+
+    // settings
+    const settingsMap settings[2] {
+        {SSID_KEY, 32},
+        {SSID_PASS_KEY, 64}
+    };
+
+    const int SETTINGS_SIZE = sizeof(settings);
 public:
     EepromSettings() {
         EEPROM.begin(getEepromLength());
@@ -39,8 +40,8 @@ public:
         String value = "";
         int startFrom = getStartFromEeprom(key);
         if (startFrom != -1) {
-            int endFrom = startFrom + settings[i].length;
-            for (int j = startFrom; j < endFrom; ++j)
+            int endFrom = startFrom + startFrom;
+            for (int i = startFrom; i < endFrom; ++i)
             {
                 if (EEPROM.read(i) != NULL) {
                     value += char(EEPROM.read(i));
@@ -51,7 +52,7 @@ public:
     }
 
     bool setValue(String key, String value) {
-        String startFrom = getStartFromEeprom(key);
+        int startFrom = getStartFromEeprom(key);
         if (startFrom != -1) {
             for (int i = 0; i < value.length(); ++i)
             {
@@ -66,7 +67,7 @@ public:
 
     void hardReset() {
         for (int i = 0 ; i < EEPROM.length() ; i++) {
-          EEPROM.write(i, 0);
+            EEPROM.write(i, 0);
         }
     }
 
