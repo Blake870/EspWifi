@@ -1,20 +1,18 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
-#include <ESP8266WebServer.h>
-#include <EEPROM.h>
 #include "Hotspot.h"
 #include "EepromSettings.h"
+#include "WebServer.h"
 
 //Variables
 int i = 0;
 int statusCode;
-const char* ssid = "";
-const char* passphrase = "";
 String st;
 String content;
 
-Hotspot Hotspot;
-EepromSettings EepromSettings;
+Hotspot hotspot;
+EepromSettings eepromSettings = *(EepromSettings::instance());
+WebServer webServer;
 
 void setup()
 {
@@ -27,27 +25,28 @@ void setup()
   Serial.println();
   Serial.println();
   Serial.println("Startup");
-  String esid = EepromSettings.getValue(EepromSettings.getSsidKey());
+  String esid = eepromSettings.getValue(eepromSettings.getSsidKey());
   Serial.println();
   Serial.print("SSID: ");
   Serial.println(esid);
-  String epass = EepromSettings.getValue(EepromSettings.getSsidPasswordKey());
+  String epass = eepromSettings.getValue(eepromSettings.getSsidPasswordKey());
   Serial.print("PASS: ");
   Serial.println(epass);
   WiFi.begin(esid.c_str(), epass.c_str());
   if (isConnectedToWifi())
   {
     Serial.println("Succesfully Connected to wifi!");
-    //createClientControllers();
+    webServer.launchApiServer();
   }
   else
   {
     Serial.println("Can't connect to wifi. Turning the HotSpot On.");
-    Hotspot.start();
+    hotspot.start();
+    webServer.launchHotspotServer();
   }
 }
 void loop() {
-  //server.handleClient();
+    webServer.handleClient();
   if ((WiFi.status() == WL_CONNECTED))
   {
     // Add your program code here which the esp8266 has to perform when it connects to network
@@ -78,28 +77,3 @@ bool isConnectedToWifi(void)
   Serial.println("Connection timed out!");
   return false;
 }
-
-
-
-void createClientControllers() {
-  server.on("/current-ssid", []() {
-      Serial.println("Opened current sid controller");
-      content = "{\"ssid\":\"";
-      content += getEepromValue(0, 32);
-      content += "\"}";
-      server.sendHeader("Access-Control-Allow-Origin", "*");
-      server.send(200, "application/json; charset=utf-8", content);
-  });
-  server.begin();
-}
-
-String getEepromValue(int start, int end) {
-  String value;
-  for (int i = start; i < end; ++i)
-  {
-    if (EEPROM.read(i) != NULL) {
-      value += char(EEPROM.read(i));
-    }
-  }
-  return value;
-} 

@@ -3,8 +3,6 @@
 
 #include <EEPROM.h>
 
-
-
 class EepromSettings {
     typedef struct {
         String key;
@@ -21,11 +19,22 @@ class EepromSettings {
     };
 
     const int SETTINGS_SIZE = sizeof(settings);
+
+    static EepromSettings* _instance;
 public:
     EepromSettings() {
         EEPROM.begin(getEepromLength());
         delay(10);
         EEPROM.commit();
+    }
+
+    static EepromSettings* instance()
+    {
+        if(!EepromSettings::_instance)
+        {
+            EepromSettings::_instance = new EepromSettings();
+        }
+        return EepromSettings::_instance;
     }
 
     String getSsidKey() {
@@ -92,5 +101,7 @@ protected:
         return length;
     }
 };
+
+EepromSettings* EepromSettings::_instance;
 
 #endif
